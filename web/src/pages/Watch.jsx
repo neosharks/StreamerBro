@@ -68,6 +68,15 @@ export default function Watch({ canDelete }) {
     e.target.value = ''
   }
 
+  async function optimize() {
+    try {
+      await api.optimize(id)
+      alert('Conversion started — track progress in Downloads. Full resolution is kept.')
+    } catch (e) {
+      alert('Could not start conversion: ' + e.message)
+    }
+  }
+
   async function remove() {
     if (!confirm('Remove this title from your library?')) return
     const deleteFile = confirm(
@@ -81,6 +90,8 @@ export default function Watch({ canDelete }) {
   if (!m) return <div className="grid h-screen place-items-center bg-black text-slate-400">Loading…</div>
 
   const src = api.streamUrl(id, transcode)
+  const PLAYABLE_V = ['h264', 'avc1', 'vp8', 'vp9', 'av1']
+  const needsConvert = m.vcodec && !PLAYABLE_V.includes(m.vcodec.toLowerCase()) && !m.optimized
 
   return (
     <div className="bg-ink-950">
@@ -156,6 +167,19 @@ export default function Watch({ canDelete }) {
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
                   Play
                 </button>
+                <a href={api.downloadUrl(id)} className="btn-ghost" download>
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 3v12m0 0 4-4m-4 4-4-4" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" strokeLinecap="round" />
+                  </svg>
+                  Download
+                </a>
+                {needsConvert && (
+                  <button onClick={optimize} className="btn-ghost !border-amber-400/30 !text-amber-300">
+                    Convert for streaming{m.height ? ` (keeps ${resLabel(m.height)})` : ''}
+                  </button>
+                )}
+                {m.optimized && <span className="chip !text-emerald-300">Optimized ✓</span>}
                 {m.imdb_id && (
                   <a href={`https://www.imdb.com/title/${m.imdb_id}`} target="_blank" rel="noreferrer" className="btn-ghost">
                     IMDb ↗

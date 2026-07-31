@@ -20,6 +20,7 @@ export const config = {
   mediaDir: process.env.MEDIA_DIR || path.join(root, 'media'),
   dataDir: process.env.DATA_DIR || path.join(root, 'data'),
   thumbsDir: process.env.THUMBS_DIR || path.join(root, 'thumbnails'),
+  optimizedDir: process.env.OPTIMIZED_DIR || path.join(process.env.DATA_DIR || path.join(root, 'data'), 'optimized'),
   webRoot: path.join(root, 'web', 'dist'),
 
   // external tools (overridable for weird installs)
@@ -34,6 +35,7 @@ export const config = {
   vaapiDevice: process.env.VAAPI_DEVICE || '/dev/dri/renderD128',
   transcodePreset: process.env.TRANSCODE_PRESET || 'veryfast',
   transcodeCrf: process.env.TRANSCODE_CRF || '22',
+  optimizeQp: process.env.OPTIMIZE_QP || '20', // quality for the H.264 optimized copy (lower = better)
 
   // metadata providers
   tmdbKey: process.env.TMDB_API_KEY || '', // richest (posters, cast, TV) — free key
@@ -48,7 +50,7 @@ export const config = {
 }
 
 // ensure dirs exist on boot
-for (const d of [config.mediaDir, config.dataDir, config.thumbsDir]) {
+for (const d of [config.mediaDir, config.dataDir, config.thumbsDir, config.optimizedDir]) {
   fs.mkdirSync(d, { recursive: true })
 }
 

@@ -7,10 +7,29 @@ import { streamDirect, streamTranscode, canDirectPlay } from '../stream.js'
 export default async function streamRoutes(fastify) {
   fastify.get('/api/stream/:id', async (req, reply) => {
     const m = getMedia(req.params.id)
-    if (!m || !fs.existsSync(m.path)) return reply.code(404).send({ error: 'not found' })
+    if (!m) return reply.code(404).send({ error: 'not found' })
+    // prefer the browser-friendly H.264 copy when it exists (smooth, no live transcode)
+    if (m.optimized && req.query.original !== '1' && fs.existsSync(m.optimized)) {
+      return streamDirect(req, reply, { ...m, path: m.optimized })
+    }
+    if (!fs.existsSync(m.path)) return reply.code(404).send({ error: 'not found' })
     const force = req.query.transcode === '1'
     if (!force && canDirectPlay(m)) return streamDirect(req, reply, m)
     return streamTranscode(req, reply, m)
+  })
+
+  // download the original file (or the optimized copy) to the user's device
+  fastify.get('/api/download/:id', async (req, reply) => {
+    const m = getMedia(req.params.id)
+    if (!m) return reply.code(404).send()
+    const useOpt = req.query.optimized === '1' && m.optimized && fs.existsSync(m.optimized)
+    const file = useOpt ? m.optimized : m.path
+    if (!fs.existsSync(file)) return reply.code(404).send()
+    const name = useOpt
+      ? `${(m.title || m.filename).replace(/[^\w.\- ]+/g, '_')}.mp4`
+      : path.basename(file)
+    reply.header('Content-Disposition', `attachment; filename="${name}"`)
+    return streamDirect(req, reply, { ...m, path: file })
   })
 
   fastify.get('/api/thumb/:id', async (req, reply) => {

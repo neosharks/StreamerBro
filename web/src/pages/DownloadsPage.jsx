@@ -64,8 +64,8 @@ function Card({ d }) {
   return (
     <div className="anim-up rounded-2xl border border-white/5 bg-ink-850/70 p-4">
       <div className="flex items-start gap-3">
-        <span className={`mt-0.5 shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold uppercase ${d.kind === 'torrent' ? 'bg-sky-500/15 text-sky-300' : 'bg-rose-500/15 text-rose-300'}`}>
-          {d.kind === 'torrent' ? 'Torrent' : 'yt-dlp'}
+        <span className={`mt-0.5 shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold uppercase ${d.kind === 'torrent' ? 'bg-sky-500/15 text-sky-300' : d.kind === 'optimize' ? 'bg-amber-500/15 text-amber-300' : 'bg-rose-500/15 text-rose-300'}`}>
+          {d.kind === 'torrent' ? 'Torrent' : d.kind === 'optimize' ? 'Convert' : 'yt-dlp'}
         </span>
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium text-slate-100" title={d.name}>{d.name}</div>

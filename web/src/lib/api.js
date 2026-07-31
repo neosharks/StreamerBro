@@ -40,6 +40,8 @@ export const api = {
   get: (id) => fetch(`/api/media/${id}`, opts).then(j),
   scan: () => jsonPost('/api/media/scan'),
   refreshMeta: (id) => jsonPost(`/api/media/${id}/refresh-meta`),
+  optimize: (id) => jsonPost(`/api/media/${id}/optimize`),
+  downloadUrl: (id, optimized) => `/api/download/${id}${optimized ? '?optimized=1' : ''}`,
   setProgress: (id, progress, watched) =>
     jsonPost(`/api/media/${id}/progress`, { progress, watched }),
   del: (id, deleteFile) =>

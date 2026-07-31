@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS media (
   bitrate     INTEGER,
   folder      TEXT DEFAULT '',            -- relative folder path inside the media dir
   subs        TEXT DEFAULT '[]',          -- JSON: [{lang, file}] subtitle sidecars
+  optimized   TEXT DEFAULT '',            -- path to a browser-friendly H.264 copy (if converted)
   poster      TEXT,
   backdrop    TEXT,
   overview    TEXT,
@@ -89,6 +90,11 @@ try {
   db.prepare('SELECT subs FROM media LIMIT 1').get()
 } catch {
   db.exec("ALTER TABLE media ADD COLUMN subs TEXT DEFAULT '[]'")
+}
+try {
+  db.prepare('SELECT optimized FROM media LIMIT 1').get()
+} catch {
+  db.exec("ALTER TABLE media ADD COLUMN optimized TEXT DEFAULT ''")
 }
 
 // ---------- media ----------
@@ -195,6 +201,7 @@ function hydrate(r) {
     genres: r.genres ? JSON.parse(r.genres) : [],
     cast: r.cast_json ? JSON.parse(r.cast_json) : [],
     subs: r.subs ? JSON.parse(r.subs) : [],
+    optimized: !!r.optimized,
   }
 }
 
@@ -202,6 +209,9 @@ const setSubsStmt = db.prepare(`UPDATE media SET subs=? WHERE id=?`)
 export function setSubs(id, arr) {
   setSubsStmt.run(JSON.stringify(arr || []), id)
 }
+
+const setOptimizedStmt = db.prepare(`UPDATE media SET optimized=? WHERE id=?`)
+export const setOptimized = (id, p) => setOptimizedStmt.run(p || '', id)
 export const hydrateMedia = hydrate
 
 // ---------- downloads ----------
