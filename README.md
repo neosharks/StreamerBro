@@ -39,7 +39,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/neosharks/StreamerBro/ma
 
 It creates a Debian 12 LXC, installs Node 22 + ffmpeg + yt-dlp, builds the app, and starts it as a `systemd` service. When it finishes it prints the URL: `http://<container-ip>:8080`.
 
-**Defaults:** 4 vCPU · 4 GB RAM · 200 GB disk · unprivileged · DHCP. Override any of them:
+**Defaults:** 4 vCPU · 8 GB RAM · 400 GB disk · unprivileged · DHCP. Override any of them:
 
 ```bash
 CT_ID=210 CT_HOSTNAME=media CT_CPU=4 CT_RAM=8192 CT_DISK=500 \
