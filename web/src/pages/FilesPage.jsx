@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api.js'
 import { bytes, duration, resLabel } from '../lib/format.js'
 
+const PLAYABLE_V = ['h264', 'avc1', 'vp8', 'vp9', 'av1']
+const needsConvert = (m) => m.vcodec && !PLAYABLE_V.includes(m.vcodec.toLowerCase()) && !m.optimized
+
 export default function FilesPage({ canDelete }) {
   const nav = useNavigate()
   const [cwd, setCwd] = useState('')
@@ -10,8 +13,17 @@ export default function FilesPage({ canDelete }) {
   const [clip, setClip] = useState(null) // { mode:'cut'|'copy', type, id/path, name }
   const [sel, setSel] = useState(null) // { type:'folder'|'media', ...item } for the details panel
   const [dragOver, setDragOver] = useState(null)
+  const [menuId, setMenuId] = useState(null) // open ⋯ menu for this media id
   const [err, setErr] = useState('')
   const dragRef = useRef(null)
+
+  const convert = (m) => {
+    setMenuId(null)
+    api
+      .optimize(m.id)
+      .then(() => nav('/conversions'))
+      .catch((e) => setErr(e.message))
+  }
 
   const load = useCallback(() => {
     api.fs(cwd).then((d) => { setData(d); setSel(null) }).catch((e) => setErr(e.message))
@@ -164,25 +176,45 @@ export default function FilesPage({ canDelete }) {
                   onDragStart={() => (dragRef.current = { type: 'media', id: m.id, name: m.title || m.filename })}
                   onClick={() => setSel({ type: 'media', ...m })}
                   onDoubleClick={() => nav(`/watch/${m.id}`)}
-                  className={`group overflow-hidden rounded-xl border bg-ink-850/70 transition ${
+                  className={`group relative overflow-hidden rounded-xl border bg-ink-850/70 transition ${
                     sel?.id === m.id ? 'border-brand-500/60' : 'border-white/5 hover:border-white/20'
                   }`}
                 >
                   <div className="relative aspect-video bg-ink-800">
                     <img src={m.backdrop || api.thumb(m.id)} alt="" loading="lazy" className="h-full w-full object-cover" />
                     {m.height ? <span className="absolute right-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-bold">{resLabel(m.height)}</span> : null}
-                    {m.subs?.length ? <span className="absolute left-1 top-1 rounded bg-black/70 px-1 py-0.5 text-[9px] font-bold">CC</span> : null}
+                    <div className="absolute left-1 top-1 flex gap-1">
+                      {m.subs?.length ? <span className="rounded bg-black/70 px-1 py-0.5 text-[9px] font-bold">CC</span> : null}
+                      {m.optimized ? <span className="rounded bg-emerald-600/80 px-1 py-0.5 text-[9px] font-bold">H.264</span> : null}
+                      {needsConvert(m) ? <span className="rounded bg-amber-500/80 px-1 py-0.5 text-[9px] font-bold">{(m.vcodec || '').toUpperCase()}</span> : null}
+                    </div>
+                    {/* three-dots menu */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setMenuId(menuId === m.id ? null : m.id) }}
+                      className="absolute bottom-1 right-1 grid h-7 w-7 place-items-center rounded-md bg-black/60 text-white opacity-0 transition hover:bg-black/80 group-hover:opacity-100"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg>
+                    </button>
                   </div>
                   <div className="p-2">
                     <div className="truncate text-sm font-medium" title={m.filename}>{m.title || m.filename}</div>
                     <div className="text-xs text-slate-500">{bytes(m.size)}</div>
-                    <div className="mt-2 flex flex-wrap gap-1 opacity-0 transition group-hover:opacity-100">
-                      <Mini onClick={() => setClip({ mode: 'cut', type: 'media', id: m.id, name: m.title || m.filename })}>Cut</Mini>
-                      <Mini onClick={() => setClip({ mode: 'copy', type: 'media', id: m.id, name: m.title || m.filename })}>Copy</Mini>
-                      <Mini onClick={() => nav(`/watch/${m.id}`)}>Play</Mini>
-                      {canDelete && <Mini danger onClick={() => delFile(m)}>Delete</Mini>}
-                    </div>
                   </div>
+
+                  {menuId === m.id && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={(e) => { e.stopPropagation(); setMenuId(null) }} />
+                      <div className="absolute bottom-10 right-1 z-30 w-44 overflow-hidden rounded-xl border border-white/10 bg-ink-800 py-1 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        <MenuItem onClick={() => { setMenuId(null); nav(`/watch/${m.id}`) }}>▶ Play</MenuItem>
+                        <a href={api.downloadUrl(m.id)} download onClick={() => setMenuId(null)} className="block px-3 py-2 text-sm text-slate-200 hover:bg-white/5">⬇ Download</a>
+                        {needsConvert(m) && <MenuItem onClick={() => convert(m)}>✦ Convert to H.264</MenuItem>}
+                        {m.optimized && <div className="px-3 py-2 text-sm text-emerald-300">✓ Optimized</div>}
+                        <MenuItem onClick={() => { setClip({ mode: 'cut', type: 'media', id: m.id, name: m.title || m.filename }); setMenuId(null) }}>✂ Cut</MenuItem>
+                        <MenuItem onClick={() => { setClip({ mode: 'copy', type: 'media', id: m.id, name: m.title || m.filename }); setMenuId(null) }}>⧉ Copy</MenuItem>
+                        {canDelete && <MenuItem danger onClick={() => { setMenuId(null); delFile(m) }}>🗑 Delete</MenuItem>}
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -235,6 +267,17 @@ function Mini({ children, onClick, danger }) {
       className={`rounded-md px-2 py-1 text-xs font-medium transition ${
         danger ? 'bg-rose-500/15 text-rose-300 hover:bg-rose-500/25' : 'bg-white/5 text-slate-300 hover:bg-white/10'
       }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function MenuItem({ children, onClick, danger }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick() }}
+      className={`block w-full px-3 py-2 text-left text-sm hover:bg-white/5 ${danger ? 'text-rose-300' : 'text-slate-200'}`}
     >
       {children}
     </button>
