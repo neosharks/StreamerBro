@@ -3,7 +3,6 @@ import path from 'node:path'
 import { config } from '../config.js'
 import { listMedia, getMedia, hydrateMedia, setProgress, setSubs, deleteMedia } from '../db.js'
 import { scanLibrary, refreshMeta, runMetaWorker, isScanning } from '../library.js'
-import { enqueueOptimize } from '../optimize.js'
 
 function sortItems(items, sort) {
   const s = [...items]
@@ -80,16 +79,6 @@ export default async function libraryRoutes(fastify) {
     else subs.push(entry)
     setSubs(m.id, subs)
     return { ok: true, subs }
-  })
-
-  // convert to a browser-friendly H.264 copy (keeps resolution — 4K stays 4K)
-  fastify.post('/api/media/:id/optimize', async (req, reply) => {
-    if (!getMedia(req.params.id)) return reply.code(404).send({ error: 'not found' })
-    try {
-      return enqueueOptimize(req.params.id)
-    } catch (e) {
-      return reply.code(400).send({ error: String((e && e.message) || e) })
-    }
   })
 
   fastify.delete('/api/media/:id', async (req) => {

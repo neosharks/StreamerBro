@@ -8,7 +8,6 @@ import Library from './pages/Library.jsx'
 import Watch from './pages/Watch.jsx'
 import DownloadsPage from './pages/DownloadsPage.jsx'
 import FilesPage from './pages/FilesPage.jsx'
-import ConversionsPage from './pages/ConversionsPage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
 import { api } from './lib/api.js'
 
@@ -85,7 +84,6 @@ export default function App() {
         <Route path="/" element={<Library query={query} sort={sort} />} />
         <Route path="/downloads" element={<DownloadsPage downloads={downloads} canDownload={canDownload} />} />
         <Route path="/files" element={<FilesPage canDelete={canDelete} />} />
-        <Route path="/conversions" element={<ConversionsPage downloads={downloads} />} />
         <Route path="/settings" element={<SettingsPage user={user} />} />
         <Route path="/watch/:id" element={<Watch canDelete={canDelete} />} />
       </Routes>

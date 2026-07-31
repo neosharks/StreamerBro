@@ -57,9 +57,6 @@ export default function Navbar({
           <NavLink to="/files" className={navClass}>
             File Manager
           </NavLink>
-          <NavLink to="/conversions" className={navClass}>
-            Conversions
-          </NavLink>
         </nav>
 
         <div className="relative ml-auto block w-full max-w-xs flex-1">

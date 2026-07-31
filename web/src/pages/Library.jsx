@@ -133,7 +133,7 @@ export default function Library({ query, sort }) {
   return (
     <div className="anim-fade min-h-screen pb-24 sm:pb-16">
       <Hero items={heroItems} />
-      <div className="relative z-10 -mt-[6vw]">
+      <div className="relative z-10 mt-2">
         {rows.map((r) => (
           <Row key={r.key} title={r.title} items={r.items} />
         ))}

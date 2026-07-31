@@ -1,7 +1,6 @@
 import { listDownloads, getDownload, removeDownload, purgeDownload } from '../db.js'
 import { addTorrent, cancelTorrent } from '../downloads/torrents.js'
 import { addYtdlp, cancelYtdlp } from '../downloads/ytdlp.js'
-import { cancelOptimize } from '../optimize.js'
 import { scanLibrary, runMetaWorker } from '../library.js'
 
 export default async function downloadsRoutes(fastify) {
@@ -31,7 +30,6 @@ export default async function downloadsRoutes(fastify) {
     const d = getDownload(req.params.id)
     if (d) {
       if (d.kind === 'torrent') cancelTorrent(req.params.id, req.query.deleteData === '1')
-      else if (d.kind === 'optimize') cancelOptimize(d.source) // source = media id
       else cancelYtdlp(req.params.id)
       removeDownload(req.params.id)
     }

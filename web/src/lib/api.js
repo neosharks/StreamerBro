@@ -40,8 +40,7 @@ export const api = {
   get: (id) => fetch(`/api/media/${id}`, opts).then(j),
   scan: () => jsonPost('/api/media/scan'),
   refreshMeta: (id) => jsonPost(`/api/media/${id}/refresh-meta`),
-  optimize: (id) => jsonPost(`/api/media/${id}/optimize`),
-  downloadUrl: (id, optimized) => `/api/download/${id}${optimized ? '?optimized=1' : ''}`,
+  downloadUrl: (id) => `/api/download/${id}`,
   setProgress: (id, progress, watched) =>
     jsonPost(`/api/media/${id}/progress`, { progress, watched }),
   del: (id, deleteFile) =>
@@ -76,7 +75,6 @@ export const api = {
   fixThumbnails: (force) => jsonPost('/api/system/fix-thumbnails', { force }),
   cleanJunk: () => jsonPost('/api/system/clean'),
   refreshMetaAll: () => jsonPost('/api/system/refresh-metadata'),
-  optimizeAll: () => jsonPost('/api/system/optimize-all'),
 
   streamUrl: (id, transcode) => `/api/stream/${id}${transcode ? '?transcode=1' : ''}`,
   thumb: (id) => `/api/thumb/${id}`,

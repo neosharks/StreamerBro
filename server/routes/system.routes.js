@@ -2,10 +2,8 @@ import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import { config } from '../config.js'
 import { fixThumbnails, cleanJunk, stats, serverStats } from '../maintenance.js'
-import { resetMeta, listMedia } from '../db.js'
+import { resetMeta } from '../db.js'
 import { runMetaWorker } from '../library.js'
-import { enqueueOptimize } from '../optimize.js'
-import { PLAYABLE_VCODECS } from '../config.js'
 
 export default async function systemRoutes(fastify) {
   fastify.get('/api/system/stats', async () => stats())
@@ -20,19 +18,6 @@ export default async function systemRoutes(fastify) {
     const queued = resetMeta()
     runMetaWorker() // fire-and-forget
     return { queued }
-  })
-
-  // convert every browser-incompatible video (HEVC/x265…) to H.264, keeping resolution
-  fastify.post('/api/system/optimize-all', async () => {
-    const items = listMedia().filter(
-      (m) => m.vcodec && !PLAYABLE_VCODECS.has(m.vcodec.toLowerCase()) && !m.optimized,
-    )
-    for (const m of items) {
-      try {
-        enqueueOptimize(m.id)
-      } catch {}
-    }
-    return { queued: items.length }
   })
 
   fastify.get('/api/system/version', async () => {

@@ -171,17 +171,6 @@ export default function SettingsPage({ user }) {
                   run('clean', api.cleanJunk, (r) => `Removed ${r.files} leftover file(s) and ${r.thumbs} orphan thumbnail(s).`)
                 }
               />
-              <Action
-                label="Convert incompatible videos"
-                running={busy === 'optall'}
-                onClick={() =>
-                  run('optall', api.optimizeAll, (r) =>
-                    r.queued
-                      ? `Converting ${r.queued} video(s) to H.264 (full resolution kept) — track in Downloads.`
-                      : 'All videos are already browser-compatible.',
-                  )
-                }
-              />
             </div>
           ) : (
             <p className="text-sm text-slate-400">Library maintenance is available to admins only.</p>
