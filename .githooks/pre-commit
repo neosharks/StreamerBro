@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Runs before every commit:
+#   1. forces the commit identity (one author for the whole project)
+#   2. auto-bumps the patch version in VERSION + package.json and stages them
+# Activate once per clone with:  git config core.hooksPath .githooks
+set -e
+
+AUTHOR_NAME="neosharks"
+AUTHOR_EMAIL="thakursatyam9415@gmail.com"
+
+root="$(git rev-parse --show-toplevel)"
+
+# 1) enforce a single author for all commits
+git config user.name  "$AUTHOR_NAME"
+git config user.email "$AUTHOR_EMAIL"
+
+# 2) bump patch version: X.Y.Z -> X.Y.(Z+1)
+cur="$(tr -d '[:space:]' < "$root/VERSION" 2>/dev/null || echo 1.0.0)"
+IFS='.' read -r MA MI PA <<< "$cur"
+new="${MA:-1}.${MI:-0}.$(( ${PA:-0} + 1 ))"
+
+printf '%s\n' "$new" > "$root/VERSION"
+# update package.json's version string only (no reformat)
+node -e "const fs=require('fs');const f=process.argv[1];let t=fs.readFileSync(f,'utf8');t=t.replace(/(\"version\":\s*\")[0-9]+\.[0-9]+\.[0-9]+(\")/,'\$1'+process.argv[2]+'\$2');fs.writeFileSync(f,t)" "$root/package.json" "$new"
+
+git add "$root/VERSION" "$root/package.json"
+echo "[pre-commit] version -> $new · author = $AUTHOR_NAME <$AUTHOR_EMAIL>"
