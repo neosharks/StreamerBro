@@ -42,11 +42,17 @@ pct create "$CT_ID" "$TEMPLATE_STORAGE:vztmpl/$TEMPLATE" \
   --unprivileged "$CT_UNPRIVILEGED" --features nesting=1 --onboot 1 --password "$CT_PASSWORD"
 
 pct start "$CT_ID"
-echo "Waiting for network..."
-sleep 8
 
+echo "Waiting for the container network..."
+for i in $(seq 1 30); do
+  pct exec "$CT_ID" -- getent hosts deb.debian.org >/dev/null 2>&1 && break
+  sleep 2
+done
+
+# The stock Debian template has no curl — install it first, then download & run the
+# installer from a file (so any failure aborts loudly instead of silently no-op'ing).
 echo "Installing Streamer Bro inside the container..."
-pct exec "$CT_ID" -- bash -c "curl -fsSL $REPO_RAW/scripts/install-lxc.sh | REPO_URL=$REPO_URL bash"
+pct exec "$CT_ID" -- bash -c "apt-get update && apt-get install -y curl ca-certificates && curl -fsSL $REPO_RAW/scripts/install-lxc.sh -o /tmp/sb-install.sh && REPO_URL='$REPO_URL' bash /tmp/sb-install.sh"
 
 IP=$(pct exec "$CT_ID" -- hostname -I 2>/dev/null | awk '{print $1}')
 echo
