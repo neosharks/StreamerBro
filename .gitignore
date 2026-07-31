@@ -1,0 +1,11 @@
+node_modules/
+web/node_modules/
+web/dist/
+data/
+media/*
+!media/.gitkeep
+thumbnails/*
+!thumbnails/.gitkeep
+.env
+*.log
+.DS_Store

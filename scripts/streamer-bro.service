@@ -1,0 +1,20 @@
+[Unit]
+Description=Streamer Bro media server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__APP_DIR__
+ExecStart=/usr/bin/node server/index.js
+Environment=NODE_ENV=production
+Environment=PORT=__PORT__
+Environment=MEDIA_DIR=__APP_DIR__/media
+Environment=DATA_DIR=__APP_DIR__/data
+Environment=THUMBS_DIR=__APP_DIR__/data/thumbnails
+EnvironmentFile=-__APP_DIR__/.env
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

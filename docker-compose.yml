@@ -1,0 +1,15 @@
+services:
+  streamer-bro:
+    build: .
+    image: streamer-bro
+    container_name: streamer-bro
+    ports:
+      - '8080:8080'
+    environment:
+      # Optional — richer metadata (posters, IMDB ratings, cast).
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+      OMDB_API_KEY: ${OMDB_API_KEY:-}
+    volumes:
+      - ./media:/media # your video library (downloads land here)
+      - ./data:/data # database + thumbnails (persistent)
+    restart: unless-stopped
