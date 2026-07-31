@@ -31,8 +31,9 @@ export const config = {
   // Compatible codecs are always stream-copied instead (zero quality loss).
   // HWACCEL: none | videotoolbox | nvenc | qsv | vaapi — big speed win for 4K.
   hwaccel: (process.env.FFMPEG_HWACCEL || 'none').toLowerCase(),
+  vaapiDevice: process.env.VAAPI_DEVICE || '/dev/dri/renderD128',
   transcodePreset: process.env.TRANSCODE_PRESET || 'veryfast',
-  transcodeCrf: process.env.TRANSCODE_CRF || '20',
+  transcodeCrf: process.env.TRANSCODE_CRF || '22',
 
   // metadata providers
   tmdbKey: process.env.TMDB_API_KEY || '', // richest (posters, cast, TV) — free key

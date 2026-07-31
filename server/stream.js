@@ -53,7 +53,23 @@ export function streamDirect(req, reply, m) {
   return reply.send(fs.createReadStream(m.path))
 }
 
-// Pick the H.264 encoder for the rare case a re-encode is unavoidable.
+// Hardware DECODE args (before -i) — only used when we actually re-encode.
+// Keeps 4K HEVC frames on the GPU so decode is hardware-accelerated too.
+function hwInputArgs() {
+  const dev = config.vaapiDevice
+  switch (config.hwaccel) {
+    case 'vaapi':
+      return ['-hwaccel', 'vaapi', '-hwaccel_device', dev, '-hwaccel_output_format', 'vaapi']
+    case 'qsv':
+      return ['-hwaccel', 'qsv', '-qsv_device', dev, '-hwaccel_output_format', 'qsv']
+    case 'nvenc':
+      return ['-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda']
+    default:
+      return []
+  }
+}
+
+// Pick the H.264 ENCODER for the rare case a re-encode is unavoidable (HEVC/x265).
 function videoEncodeArgs() {
   const { hwaccel, transcodePreset, transcodeCrf } = config
   switch (hwaccel) {
@@ -62,9 +78,10 @@ function videoEncodeArgs() {
     case 'nvenc':
       return ['-c:v', 'h264_nvenc', '-preset', 'p5', '-rc', 'vbr', '-cq', transcodeCrf]
     case 'qsv':
-      return ['-c:v', 'h264_qsv', '-global_quality', transcodeCrf]
+      return ['-vf', 'scale_qsv=format=nv12', '-c:v', 'h264_qsv', '-global_quality', transcodeCrf]
     case 'vaapi':
-      return ['-vaapi_device', '/dev/dri/renderD128', '-vf', 'format=nv12,hwupload', '-c:v', 'h264_vaapi', '-qp', transcodeCrf]
+      // downconvert 10-bit HEVC (p010) to nv12 on the GPU, then hardware H.264 encode
+      return ['-vf', 'scale_vaapi=format=nv12', '-c:v', 'h264_vaapi', '-qp', transcodeCrf]
     default:
       return ['-c:v', 'libx264', '-preset', transcodePreset, '-crf', transcodeCrf, '-pix_fmt', 'yuv420p']
   }
@@ -82,6 +99,7 @@ export function streamTranscode(req, reply, m) {
     '-hide_banner',
     '-loglevel',
     'error',
+    ...(vCopy ? [] : hwInputArgs()), // hardware decode only when re-encoding
     '-i',
     m.path,
     ...(vCopy ? ['-c:v', 'copy'] : videoEncodeArgs()),
