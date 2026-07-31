@@ -76,6 +76,7 @@ export const api = {
   fixThumbnails: (force) => jsonPost('/api/system/fix-thumbnails', { force }),
   cleanJunk: () => jsonPost('/api/system/clean'),
   refreshMetaAll: () => jsonPost('/api/system/refresh-metadata'),
+  optimizeAll: () => jsonPost('/api/system/optimize-all'),
 
   streamUrl: (id, transcode) => `/api/stream/${id}${transcode ? '?transcode=1' : ''}`,
   thumb: (id) => `/api/thumb/${id}`,
