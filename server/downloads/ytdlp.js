@@ -44,6 +44,13 @@ export function addYtdlp(url, onComplete) {
     '--convert-thumbnails',
     'jpg',
     '--embed-metadata',
+    // captions: real + auto-generated (English), converted to browser-native VTT
+    '--write-subs',
+    '--write-auto-subs',
+    '--sub-langs',
+    'en.*,en',
+    '--convert-subs',
+    'vtt',
     '-o',
     outTpl,
     url,

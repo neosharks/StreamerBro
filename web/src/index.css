@@ -12,6 +12,13 @@ body,
   height: 100%;
 }
 
+html,
+body {
+  /* the page never scrolls sideways — only the media rows scroll horizontally */
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   margin: 0;
   background: #08090d;

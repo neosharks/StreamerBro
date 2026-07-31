@@ -21,20 +21,52 @@ export function listFolder(rel = '') {
   try {
     entries = fs.readdirSync(abs, { withFileTypes: true })
   } catch {}
+  const media = listMedia()
+  const under = (p) => media.filter((m) => m.folder === p || m.folder.startsWith(p + '/'))
   const folders = entries
     .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
     .map((e) => {
       const p = rel ? `${rel}/${e.name}` : e.name
-      return { name: e.name, path: p, count: countUnder(p) }
+      const items = under(p)
+      return { name: e.name, path: p, count: items.length, size: items.reduce((s, m) => s + (m.size || 0), 0) }
     })
     .sort((a, b) => a.name.localeCompare(b.name))
-  const files = listMedia().filter((m) => (m.folder || '') === (rel || ''))
+  const files = media.filter((m) => (m.folder || '') === (rel || ''))
   return { path: rel || '', folders, files }
 }
 
-function countUnder(rel) {
-  const prefix = rel
-  return listMedia().filter((m) => m.folder === prefix || m.folder.startsWith(prefix + '/')).length
+function dedupe(p) {
+  if (!fs.existsSync(p)) return p
+  const ext = path.extname(p)
+  const base = ext ? p.slice(0, -ext.length) : p
+  let i = 1
+  let np
+  do {
+    np = `${base} (copy${i > 1 ? ' ' + i : ''})${ext}`
+    i++
+  } while (fs.existsSync(np))
+  return np
+}
+
+export function copyMedia(id, destRel) {
+  const m = getMedia(id)
+  if (!m) throw new Error('media not found')
+  const destDir = safe(destRel || '')
+  fs.mkdirSync(destDir, { recursive: true })
+  fs.copyFileSync(m.path, dedupe(path.join(destDir, m.filename)))
+  return { ok: true } // a rescan indexes the copy as a new title
+}
+
+export function copyFolder(srcRel, destRel) {
+  if (!srcRel) throw new Error('cannot copy the root folder')
+  const srcAbs = safe(srcRel)
+  const name = path.basename(srcRel)
+  let destAbs = path.join(safe(destRel || ''), name)
+  if (destAbs === srcAbs || destAbs.startsWith(srcAbs + path.sep)) {
+    throw new Error('cannot copy a folder into itself')
+  }
+  fs.cpSync(srcAbs, dedupe(destAbs), { recursive: true })
+  return { ok: true }
 }
 
 export function createFolder(rel, name) {

@@ -1,8 +1,18 @@
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import { config } from '../config.js'
+import { fixThumbnails, cleanJunk, stats, serverStats } from '../maintenance.js'
 
 export default async function systemRoutes(fastify) {
+  fastify.get('/api/system/stats', async () => stats())
+  fastify.get('/api/system/server', async () => serverStats())
+
+  // maintenance (admin-only, enforced in the global preHandler)
+  fastify.post('/api/system/fix-thumbnails', async (req) =>
+    fixThumbnails({ force: req.body?.force }),
+  )
+  fastify.post('/api/system/clean', async () => cleanJunk())
+
   fastify.get('/api/system/version', async () => {
     let latest = null
     try {
@@ -28,8 +38,16 @@ export default async function systemRoutes(fastify) {
     if (!fs.existsSync(config.updateScript)) {
       return reply.code(400).send({ ok: false, error: 'update script not found on this install' })
     }
-    const p = spawn('bash', [config.updateScript], { detached: true, stdio: 'ignore' })
+    // Run the updater OUTSIDE this service's cgroup via systemd-run, so the
+    // `systemctl restart` at the end of the script doesn't kill the updater
+    // itself. Fall back to a plain detached process where systemd-run is absent.
+    const detached = { detached: true, stdio: 'ignore' }
+    const p = spawn('systemd-run', ['--scope', '--collect', 'bash', config.updateScript], detached)
+    p.on('error', () => {
+      const f = spawn('bash', [config.updateScript], detached)
+      f.unref()
+    })
     p.unref()
-    return { ok: true, message: 'Update started — the app will rebuild and restart shortly.' }
+    return { ok: true, message: 'Update started — the app will pull the latest version, rebuild, and restart.' }
   })
 }

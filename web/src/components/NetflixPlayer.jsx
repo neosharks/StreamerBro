@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { clock } from '../lib/format.js'
+import { api } from '../lib/api.js'
+import { getCaptionSettings } from '../lib/captions.js'
 
 const I = {
   play: 'M8 5v14l11-7z',
@@ -14,7 +16,9 @@ function Icon({ d, className = 'h-6 w-6', stroke = false }) {
   )
 }
 
-export default function NetflixPlayer({ src, poster, title, media, autoPlay = true, onProgressSave, onNeedTranscode, onBack }) {
+const RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+
+export default function NetflixPlayer({ src, poster, title, media, subtitles = [], mediaId, autoPlay = true, onProgressSave, onNeedTranscode, onBack, onNext, onPrev }) {
   const videoRef = useRef(null)
   const wrapRef = useRef(null)
   const hideTimer = useRef(null)
@@ -30,6 +34,10 @@ export default function NetflixPlayer({ src, poster, title, media, autoPlay = tr
   const [full, setFull] = useState(false)
   const [show, setShow] = useState(true)
   const [seeking, setSeeking] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
+  const [subIdx, setSubIdx] = useState(-1)
+  const [cueText, setCueText] = useState('')
+  const [caps, setCaps] = useState(getCaptionSettings())
 
   // ---- controls auto-hide ----
   const poke = useCallback(() => {
@@ -99,12 +107,14 @@ export default function NetflixPlayer({ src, poster, title, media, autoPlay = tr
     setMuted(val === 0)
   }
 
-  const cycleRate = () => {
-    const rates = [1, 1.25, 1.5, 2, 0.5]
-    const next = rates[(rates.indexOf(rate) + 1) % rates.length]
-    if (videoRef.current) videoRef.current.playbackRate = next
-    setRate(next)
+  const applyRate = (r) => {
+    if (videoRef.current) videoRef.current.playbackRate = r
+    setRate(r)
   }
+  const cycleRate = () => applyRate(RATES[(RATES.indexOf(rate) + 1) % RATES.length])
+  const speedStep = (dir) => applyRate(RATES[Math.max(0, Math.min(RATES.length - 1, RATES.indexOf(rate) + dir))])
+
+  const cycleSub = () => setSubIdx((i) => (i + 1 >= subtitles.length ? -1 : i + 1))
 
   // ---- events wiring ----
   useEffect(() => {
@@ -112,6 +122,40 @@ export default function NetflixPlayer({ src, poster, title, media, autoPlay = tr
     document.addEventListener('fullscreenchange', onFs)
     return () => document.removeEventListener('fullscreenchange', onFs)
   }, [])
+
+  // caption preferences (live-updated from Settings)
+  useEffect(() => {
+    const h = () => setCaps(getCaptionSettings())
+    window.addEventListener('captions:changed', h)
+    return () => window.removeEventListener('captions:changed', h)
+  }, [])
+
+  // turn captions on by default when a title has them
+  useEffect(() => {
+    setSubIdx(subtitles.length && getCaptionSettings().enabled ? 0 : -1)
+  }, [mediaId, subtitles.length])
+
+  // render the active cue into our own styled overlay (native rendering hidden)
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v) return
+    const tt = v.textTracks
+    for (let i = 0; i < tt.length; i++) tt[i].mode = 'hidden'
+    if (subIdx < 0) {
+      setCueText('')
+      return
+    }
+    const track = tt[0]
+    if (!track) return
+    track.mode = 'hidden'
+    const onCue = () => {
+      const c = track.activeCues && track.activeCues[0]
+      setCueText(c ? c.text.replace(/<[^>]+>/g, '') : '')
+    }
+    track.addEventListener('cuechange', onCue)
+    onCue()
+    return () => track.removeEventListener('cuechange', onCue)
+  }, [subIdx, src])
 
   useEffect(() => {
     const onKey = (e) => {
@@ -121,21 +165,37 @@ export default function NetflixPlayer({ src, poster, title, media, autoPlay = tr
         case 'Enter':
         case 'k':
           e.preventDefault(); togglePlay(); break
-        case 'ArrowLeft': skip(-10); break
-        case 'ArrowRight': skip(10); break
+        case 'ArrowLeft':
         case 'j': skip(-10); break
+        case 'ArrowRight':
         case 'l': skip(10); break
         case 'f': toggleFull(); break
         case 'm': toggleMute(); break
-        case 'ArrowUp': changeVol(Math.min(1, vol + 0.1)); poke(); break
-        case 'ArrowDown': changeVol(Math.max(0, vol - 0.1)); poke(); break
-        default: return
+        case 'ArrowUp': changeVol(Math.min(1, vol + 0.1)); break
+        case 'ArrowDown': changeVol(Math.max(0, vol - 0.1)); break
+        case 'c':
+        case 'C': setSubIdx((i) => (i >= 0 ? -1 : subtitles.length ? 0 : -1)); break
+        case 'n':
+        case 'N': onNext?.(); break
+        case 'p':
+        case 'P': onPrev?.(); break
+        case 'Home': seekTo(0); break
+        case 'End': seekTo(0.999); break
+        case ',':
+        case '<': speedStep(-1); break
+        case '.':
+        case '>': speedStep(1); break
+        case '?': setShowHelp((h) => !h); break
+        case 'Escape': setShowHelp(false); break
+        default:
+          if (/^[0-9]$/.test(e.key)) { seekTo(Number(e.key) / 10); break }
+          return
       }
       poke()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [togglePlay, skip, toggleFull, toggleMute, vol, poke])
+  }, [togglePlay, skip, toggleFull, toggleMute, seekTo, vol, rate, poke, onNext, onPrev, subtitles.length])
 
   const pct = dur ? (cur / dur) * 100 : 0
   const bufPct = dur ? (buffered / dur) * 100 : 0
@@ -172,7 +232,41 @@ export default function NetflixPlayer({ src, poster, title, media, autoPlay = tr
         onEnded={() => onProgressSave?.(1, true)}
         onError={onNeedTranscode}
         className="absolute inset-0 h-full w-full bg-black object-contain"
-      />
+      >
+        {subIdx >= 0 && subtitles[subIdx] && (
+          <track
+            key={`${mediaId}-${subIdx}`}
+            kind="subtitles"
+            src={api.subsUrl(mediaId, subIdx)}
+            srcLang={subtitles[subIdx].lang}
+            default
+          />
+        )}
+      </video>
+
+      {/* captions overlay (our own styling from Settings) */}
+      {subIdx >= 0 && cueText && (
+        <div
+          className="pointer-events-none absolute inset-x-0 z-10 flex justify-center px-6 text-center"
+          style={{ bottom: show ? `calc(${caps.position}% + 76px)` : `${caps.position}%`, transition: 'bottom .2s' }}
+        >
+          <span
+            style={{
+              fontSize: `calc(${caps.size / 100} * 1.7rem)`,
+              color: caps.color,
+              background: `rgba(0,0,0,${caps.bg / 100})`,
+              padding: '0.1em 0.5em',
+              borderRadius: 6,
+              lineHeight: 1.35,
+              maxWidth: '85%',
+              whiteSpace: 'pre-line',
+              textShadow: '0 1px 3px rgba(0,0,0,0.7)',
+            }}
+          >
+            {cueText}
+          </span>
+        </div>
+      )}
 
       {/* top gradient + title + back */}
       <div
@@ -230,17 +324,27 @@ export default function NetflixPlayer({ src, poster, title, media, autoPlay = tr
 
         {/* buttons */}
         <div className="flex items-center gap-5 text-white">
-          <button onClick={togglePlay} title="Play/Pause (space)" className="hover:text-white/80">
+          {onPrev && (
+            <button onClick={onPrev} title="Previous (p)" className="hover:text-white/80">
+              <Icon d={['M6 6v12', 'M20 6l-10 6 10 6z']} className="h-6 w-6" stroke />
+            </button>
+          )}
+          <button onClick={togglePlay} title="Play / Pause (space)" className="hover:text-white/80">
             <Icon d={playing ? I.pause : I.play} className="h-8 w-8" />
           </button>
-          <button onClick={() => skip(-10)} title="Back 10s (j)" className="relative hover:text-white/80">
+          <button onClick={() => skip(-10)} title="Back 10s (j / ←)" className="relative hover:text-white/80">
             <Icon d="M11 8a5 5 0 1 1-5 5" className="h-7 w-7" stroke />
             <span className="absolute inset-0 grid place-items-center text-[9px] font-bold">10</span>
           </button>
-          <button onClick={() => skip(10)} title="Forward 10s (l)" className="relative hover:text-white/80">
+          <button onClick={() => skip(10)} title="Forward 10s (l / →)" className="relative hover:text-white/80">
             <Icon d="M13 8a5 5 0 1 0 5 5" className="h-7 w-7" stroke />
             <span className="absolute inset-0 grid place-items-center text-[9px] font-bold">10</span>
           </button>
+          {onNext && (
+            <button onClick={onNext} title="Next (n)" className="hover:text-white/80">
+              <Icon d={['M18 6v12', 'M4 6l10 6-10 6z']} className="h-6 w-6" stroke />
+            </button>
+          )}
 
           <div className="group flex items-center gap-2">
             <button onClick={toggleMute} title="Mute (m)" className="hover:text-white/80">
@@ -259,8 +363,20 @@ export default function NetflixPlayer({ src, poster, title, media, autoPlay = tr
           </div>
 
           <div className="ml-auto flex items-center gap-5">
-            <button onClick={cycleRate} title="Playback speed" className="text-sm font-bold hover:text-white/80">
+            {subtitles.length > 0 && (
+              <button
+                onClick={cycleSub}
+                title={`Subtitles (c)${subIdx >= 0 ? ` — ${subtitles[subIdx].lang}` : ' — off'}`}
+                className={`rounded border px-1.5 py-0.5 text-xs font-bold transition ${subIdx >= 0 ? 'border-white bg-white/20 text-white' : 'border-white/40 text-white/70'} hover:bg-white/10`}
+              >
+                CC
+              </button>
+            )}
+            <button onClick={cycleRate} title="Playback speed ( < / > )" className="text-sm font-bold hover:text-white/80">
               {rate}×
+            </button>
+            <button onClick={() => setShowHelp(true)} title="Keyboard shortcuts (?)" className="grid h-7 w-7 place-items-center rounded border border-white/40 text-sm font-bold hover:bg-white/10">
+              ?
             </button>
             <button onClick={toggleFull} title="Fullscreen (f)" className="hover:text-white/80">
               {full ? (
@@ -272,6 +388,39 @@ export default function NetflixPlayer({ src, poster, title, media, autoPlay = tr
           </div>
         </div>
       </div>
+
+      {/* keyboard shortcuts overlay */}
+      {showHelp && (
+        <div className="anim-fade absolute inset-0 z-20 grid place-items-center bg-black/70 p-6 backdrop-blur-sm" onClick={() => setShowHelp(false)}>
+          <div className="anim-scale w-full max-w-md rounded-2xl border border-white/10 bg-ink-850 p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white">Keyboard shortcuts</h3>
+              <button onClick={() => setShowHelp(false)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <div className="grid grid-cols-1 gap-2 text-sm">
+              {[
+                ['Space / Enter / K', 'Play / Pause'],
+                ['← / J', 'Back 10 seconds'],
+                ['→ / L', 'Forward 10 seconds'],
+                ['0 – 9', 'Jump to 0% – 90%'],
+                ['Home / End', 'Go to start / end'],
+                ['↑ / ↓', 'Volume up / down'],
+                ['M', 'Mute'],
+                ['C', 'Captions on / off'],
+                ['< / >', 'Slower / Faster'],
+                ['N / P', 'Next / Previous video'],
+                ['F', 'Fullscreen'],
+                ['?', 'Toggle this help'],
+              ].map(([k, d]) => (
+                <div key={k} className="flex items-center justify-between gap-4">
+                  <kbd className="rounded bg-white/10 px-2 py-0.5 font-mono text-xs text-white">{k}</kbd>
+                  <span className="text-slate-300">{d}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

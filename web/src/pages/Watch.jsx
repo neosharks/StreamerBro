@@ -15,6 +15,21 @@ export default function Watch({ canDelete }) {
   const [err, setErr] = useState(false)
   const [transcode, setTranscode] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [neighbors, setNeighbors] = useState({ prev: null, next: null })
+
+  // find previous/next titles in the library order (for N/P + next button)
+  useEffect(() => {
+    api
+      .media('', 'added')
+      .then((list) => {
+        const i = list.findIndex((x) => x.id === id)
+        setNeighbors({
+          prev: i > 0 ? list[i - 1].id : null,
+          next: i >= 0 && i < list.length - 1 ? list[i + 1].id : null,
+        })
+      })
+      .catch(() => setNeighbors({ prev: null, next: null }))
+  }, [id])
 
   useEffect(() => {
     setM(null)
@@ -39,6 +54,20 @@ export default function Watch({ canDelete }) {
     }
   }
 
+  async function onSubUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const content = await file.text()
+      const lang = (file.name.match(/\.([a-z]{2,3})\.(srt|vtt)$/i)?.[1] || 'en').toLowerCase()
+      await api.addSubtitle(id, content, lang)
+      setM(await api.get(id))
+    } catch (err) {
+      alert('Could not add subtitles: ' + err.message)
+    }
+    e.target.value = ''
+  }
+
   async function remove() {
     if (!confirm('Remove this title from your library?')) return
     const deleteFile = confirm(
@@ -61,10 +90,14 @@ export default function Watch({ canDelete }) {
         poster={m.backdrop || m.poster || api.thumb(m.id)}
         title={m.title || m.filename}
         media={m}
+        mediaId={id}
+        subtitles={m.subs || []}
         autoPlay={!infoMode}
         onProgressSave={(f, w) => api.setProgress(id, f, w).catch(() => {})}
         onNeedTranscode={() => !transcode && setTranscode(true)}
         onBack={() => navigate('/')}
+        onNext={neighbors.next ? () => navigate(`/watch/${neighbors.next}`) : undefined}
+        onPrev={neighbors.prev ? () => navigate(`/watch/${neighbors.prev}`) : undefined}
       />
 
       {transcode && (
@@ -131,6 +164,10 @@ export default function Watch({ canDelete }) {
                 <button onClick={refreshMeta} disabled={refreshing} className="btn-ghost">
                   {refreshing ? 'Refreshing…' : 'Refresh metadata'}
                 </button>
+                <label className="btn-ghost cursor-pointer">
+                  {m.subs?.length ? `Subtitles (${m.subs.length})` : 'Add subtitles'}
+                  <input type="file" accept=".srt,.vtt" className="hidden" onChange={onSubUpload} />
+                </label>
                 {canDelete && (
                   <button onClick={remove} className="btn-ghost !text-rose-300 hover:!bg-rose-500/10">
                     Delete

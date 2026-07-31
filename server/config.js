@@ -27,6 +27,13 @@ export const config = {
   ffprobe: process.env.FFPROBE_PATH || 'ffprobe',
   ytdlp: process.env.YTDLP_PATH || 'yt-dlp',
 
+  // transcoding (only used when a codec isn't browser-decodable, e.g. HEVC/x265).
+  // Compatible codecs are always stream-copied instead (zero quality loss).
+  // HWACCEL: none | videotoolbox | nvenc | qsv | vaapi — big speed win for 4K.
+  hwaccel: (process.env.FFMPEG_HWACCEL || 'none').toLowerCase(),
+  transcodePreset: process.env.TRANSCODE_PRESET || 'veryfast',
+  transcodeCrf: process.env.TRANSCODE_CRF || '20',
+
   // metadata providers (optional — app degrades gracefully without them)
   tmdbKey: process.env.TMDB_API_KEY || '',
   omdbKey: process.env.OMDB_API_KEY || '',

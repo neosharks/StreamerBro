@@ -57,11 +57,22 @@ export const api = {
   renameFolder: (path, name) => jsonPost('/api/fs/rename', { path, name }),
   moveMedia: (mediaId, dest) => jsonPost('/api/fs/move', { mediaId, dest }),
   moveFolder: (folder, dest) => jsonPost('/api/fs/move', { folder, dest }),
+  copyMedia: (mediaId, dest) => jsonPost('/api/fs/copy', { mediaId, dest }),
+  copyFolder: (folder, dest) => jsonPost('/api/fs/copy', { folder, dest }),
   rmdir: (path) => fetch(`/api/fs/folder?path=${encodeURIComponent(path)}`, { method: 'DELETE', ...opts }).then(j),
+
+  // subtitles
+  addSubtitle: (id, content, lang) => jsonPost(`/api/media/${id}/subtitle`, { content, lang }),
+  subsUrl: (id, idx) => `/api/subs/${id}/${idx}`,
 
   // system
   version: () => fetch('/api/system/version', opts).then(j),
+  info: () => fetch('/api/system/info', opts).then(j),
+  stats: () => fetch('/api/system/stats', opts).then(j),
+  server: () => fetch('/api/system/server', opts).then(j),
   update: () => jsonPost('/api/system/update'),
+  fixThumbnails: (force) => jsonPost('/api/system/fix-thumbnails', { force }),
+  cleanJunk: () => jsonPost('/api/system/clean'),
 
   streamUrl: (id, transcode) => `/api/stream/${id}${transcode ? '?transcode=1' : ''}`,
   thumb: (id) => `/api/thumb/${id}`,

@@ -9,6 +9,7 @@ import {
   getMedia,
   updateMediaMeta,
   setMetaState,
+  setSubs,
   deleteMedia,
   pendingMeta,
 } from './db.js'
@@ -131,6 +132,37 @@ function applyYtdlpSidecar(id, file) {
   return usedThumb
 }
 
+// Find subtitle sidecars (.srt/.vtt) next to a video — from torrents or yt-dlp.
+function detectSubs(videoFile) {
+  const dir = path.dirname(videoFile)
+  const base = path.basename(videoFile).replace(/\.[^.]+$/, '')
+  const out = []
+  let entries = []
+  try {
+    entries = fs.readdirSync(dir)
+  } catch {
+    return out
+  }
+  for (const name of entries) {
+    const ext = path.extname(name).toLowerCase()
+    if (ext !== '.srt' && ext !== '.vtt') continue
+    const nb = name.slice(0, -ext.length)
+    if (nb === base || nb.startsWith(base + '.') || nb.startsWith(base)) {
+      const langPart = nb.slice(base.length).match(/[a-z]{2,3}/i)
+      out.push({
+        lang: langPart ? langPart[0].toLowerCase() : 'sub',
+        file: path.relative(config.mediaDir, path.join(dir, name)).split(path.sep).join('/'),
+      })
+    }
+  }
+  // de-dupe by lang, keep .vtt over .srt when both exist
+  const byLang = {}
+  for (const s of out) {
+    if (!byLang[s.lang] || s.file.endsWith('.vtt')) byLang[s.lang] = s
+  }
+  return Object.values(byLang)
+}
+
 function walk(dir, out = []) {
   let entries = []
   try {
@@ -184,6 +216,9 @@ export async function scanLibrary({ onProgress } = {}) {
       // yt-dlp downloads leave a sidecar .info.json + thumbnail — use them for rich metadata
       const usedSidecar = applyYtdlpSidecar(row.id, file)
       if (!usedSidecar) await makeThumb(row.id, file, info.duration)
+      // associate any subtitle files sitting next to the video
+      const subs = detectSubs(file)
+      if (subs.length) setSubs(row.id, subs)
       added++
       onProgress?.(row)
     }

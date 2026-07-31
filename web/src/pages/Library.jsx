@@ -95,12 +95,10 @@ export default function Library({ query, sort }) {
   }, [load])
 
   const rows = useMemo(() => (items ? buildRows(items) : []), [items])
-  const hero = useMemo(() => {
-    if (!items?.length) return null
-    return (
-      [...items].filter((m) => m.backdrop).sort((a, b) => (b.rating || 0) - (a.rating || 0))[0] ||
-      [...items].sort((a, b) => (b.added_at || 0) - (a.added_at || 0))[0]
-    )
+  // rotate the hero through all titles (backdrops first for the nicest look)
+  const heroItems = useMemo(() => {
+    if (!items?.length) return []
+    return [...items.filter((m) => m.backdrop), ...items.filter((m) => !m.backdrop)]
   }, [items])
 
   if (items === null) {
@@ -134,7 +132,7 @@ export default function Library({ query, sort }) {
 
   return (
     <div className="anim-fade min-h-screen pb-24 sm:pb-16">
-      <Hero m={hero} />
+      <Hero items={heroItems} />
       <div className="relative z-10 -mt-[6vw]">
         {rows.map((r) => (
           <Row key={r.key} title={r.title} items={r.items} />

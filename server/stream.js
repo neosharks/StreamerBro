@@ -53,24 +53,41 @@ export function streamDirect(req, reply, m) {
   return reply.send(fs.createReadStream(m.path))
 }
 
-// Fallback for codecs the browser can't decode (HEVC/x265, AC3, MKV, …).
-// Copies the video stream untouched when it's already H.264 (no quality loss),
-// otherwise transcodes at visually-lossless CRF 18. Audio -> AAC.
+// Pick the H.264 encoder for the rare case a re-encode is unavoidable.
+function videoEncodeArgs() {
+  const { hwaccel, transcodePreset, transcodeCrf } = config
+  switch (hwaccel) {
+    case 'videotoolbox':
+      return ['-c:v', 'h264_videotoolbox', '-q:v', '60']
+    case 'nvenc':
+      return ['-c:v', 'h264_nvenc', '-preset', 'p5', '-rc', 'vbr', '-cq', transcodeCrf]
+    case 'qsv':
+      return ['-c:v', 'h264_qsv', '-global_quality', transcodeCrf]
+    case 'vaapi':
+      return ['-vaapi_device', '/dev/dri/renderD128', '-vf', 'format=nv12,hwupload', '-c:v', 'h264_vaapi', '-qp', transcodeCrf]
+    default:
+      return ['-c:v', 'libx264', '-preset', transcodePreset, '-crf', transcodeCrf, '-pix_fmt', 'yuv420p']
+  }
+}
+
+// Used only when the browser can't direct-play the file (e.g. MKV container, or
+// HEVC/x265 video). Streams are COPIED whenever they're already browser-decodable
+// (zero quality loss, minimal CPU — this covers most 4K H.264/AV1/VP9 in MKV).
+// A real re-encode happens only for codecs the browser truly can't play (HEVC…),
+// where hardware acceleration (FFMPEG_HWACCEL) keeps 4K smooth.
 export function streamTranscode(req, reply, m) {
   const vCopy = PLAYABLE_VCODECS.has((m.vcodec || '').toLowerCase())
+  const aCopy = PLAYABLE_ACODECS.has((m.acodec || '').toLowerCase())
   const args = [
     '-hide_banner',
     '-loglevel',
     'error',
     '-i',
     m.path,
-    ...(vCopy ? ['-c:v', 'copy'] : ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18']),
-    '-c:a',
-    'aac',
-    '-b:a',
-    '256k',
+    ...(vCopy ? ['-c:v', 'copy'] : videoEncodeArgs()),
+    ...(aCopy ? ['-c:a', 'copy'] : ['-c:a', 'aac', '-b:a', '256k', '-ac', '2']),
     '-movflags',
-    'frag_keyframe+empty_moov+faststart',
+    'frag_keyframe+empty_moov+default_base_moof',
     '-f',
     'mp4',
     'pipe:1',

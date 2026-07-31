@@ -1,5 +1,7 @@
 import fs from 'node:fs'
-import { listMedia, getMedia, hydrateMedia, setProgress, deleteMedia } from '../db.js'
+import path from 'node:path'
+import { config } from '../config.js'
+import { listMedia, getMedia, hydrateMedia, setProgress, setSubs, deleteMedia } from '../db.js'
 import { scanLibrary, refreshMeta, runMetaWorker, isScanning } from '../library.js'
 
 function sortItems(items, sort) {
@@ -53,6 +55,30 @@ export default async function libraryRoutes(fastify) {
     const { progress = 0, watched = false } = req.body || {}
     setProgress(req.params.id, progress, watched)
     return { ok: true }
+  })
+
+  // upload an external subtitle file (SRT or VTT text) for a title
+  fastify.post('/api/media/:id/subtitle', async (req, reply) => {
+    const m = getMedia(req.params.id)
+    if (!m) return reply.code(404).send({ error: 'not found' })
+    const { content, lang = 'sub' } = req.body || {}
+    if (!content) return reply.code(400).send({ error: 'content required' })
+    const isVtt = /^WEBVTT/.test(String(content).trimStart())
+    const safeLang = String(lang).replace(/[^a-z0-9]/gi, '').slice(0, 5) || 'sub'
+    const base = m.filename.replace(/\.[^.]+$/, '')
+    const rel = (m.folder ? m.folder + '/' : '') + `${base}.${safeLang}${isVtt ? '.vtt' : '.srt'}`
+    try {
+      fs.writeFileSync(path.join(config.mediaDir, rel), content)
+    } catch (e) {
+      return reply.code(500).send({ error: String(e.message || e) })
+    }
+    const subs = m.subs ? JSON.parse(m.subs) : []
+    const existing = subs.findIndex((s) => s.lang === safeLang)
+    const entry = { lang: safeLang, file: rel }
+    if (existing >= 0) subs[existing] = entry
+    else subs.push(entry)
+    setSubs(m.id, subs)
+    return { ok: true, subs }
   })
 
   fastify.delete('/api/media/:id', async (req) => {

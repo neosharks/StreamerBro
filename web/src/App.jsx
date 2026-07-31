@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import Navbar from './components/Navbar.jsx'
 import MobileNav from './components/MobileNav.jsx'
@@ -8,6 +8,7 @@ import Library from './pages/Library.jsx'
 import Watch from './pages/Watch.jsx'
 import DownloadsPage from './pages/DownloadsPage.jsx'
 import FilesPage from './pages/FilesPage.jsx'
+import SettingsPage from './pages/SettingsPage.jsx'
 import { api } from './lib/api.js'
 
 function Splash() {
@@ -27,7 +28,6 @@ export default function App() {
   const [showUsers, setShowUsers] = useState(false)
   const [downloads, setDownloads] = useState([])
   const [version, setVersion] = useState(null)
-  const [scanning, setScanning] = useState(false)
   const isWatch = useLocation().pathname.startsWith('/watch/')
 
   useEffect(() => {
@@ -56,16 +56,6 @@ export default function App() {
 
   const activeCount = downloads.filter((d) => d.status === 'active' || d.status === 'queued').length
 
-  const onScan = useCallback(async () => {
-    setScanning(true)
-    try {
-      await api.scan()
-    } finally {
-      setScanning(false)
-    }
-    window.dispatchEvent(new Event('library:refresh'))
-  }, [])
-
   const onLogout = async () => {
     await api.logout().catch(() => {})
     setAuth({ needsSetup: false, user: null })
@@ -84,11 +74,7 @@ export default function App() {
           setSort={setSort}
           user={user}
           activeCount={activeCount}
-          canDownload={canDownload}
-          onScan={onScan}
-          scanning={scanning}
           version={version}
-          onUpdate={() => api.update().then((r) => alert(r.message || 'Update started'))}
           onManageUsers={() => setShowUsers(true)}
           onLogout={onLogout}
         />
@@ -98,6 +84,7 @@ export default function App() {
         <Route path="/" element={<Library query={query} sort={sort} />} />
         <Route path="/downloads" element={<DownloadsPage downloads={downloads} canDownload={canDownload} />} />
         <Route path="/files" element={<FilesPage canDelete={canDelete} />} />
+        <Route path="/settings" element={<SettingsPage user={user} />} />
         <Route path="/watch/:id" element={<Watch canDelete={canDelete} />} />
       </Routes>
 

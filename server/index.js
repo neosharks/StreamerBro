@@ -33,9 +33,11 @@ app.addHook('preHandler', async (req, reply) => {
   const admin = user.is_admin
   const m = req.method
 
-  if (url.startsWith('/api/users') || url.startsWith('/api/system/update')) {
-    if (!admin) return reply.code(403).send({ error: 'admin only' })
-  }
+  // user management + all system mutations are admin-only (GET version/info/stats are open)
+  const adminOnly =
+    url.startsWith('/api/users') ||
+    (m === 'POST' && url.startsWith('/api/system/'))
+  if (adminOnly && !admin) return reply.code(403).send({ error: 'admin only' })
   // starting downloads requires download permission
   if (m === 'POST' && url.startsWith('/api/downloads/') && !admin && !user.can_download) {
     return reply.code(403).send({ error: 'you do not have download permission' })

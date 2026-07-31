@@ -21,12 +21,7 @@ export default function Navbar({
   setSort,
   user,
   activeCount,
-  canDownload,
-  onAdd,
-  onScan,
-  scanning,
   version,
-  onUpdate,
   onManageUsers,
   onLogout,
 }) {
@@ -86,18 +81,10 @@ export default function Navbar({
 
         <div className="flex items-center gap-2">
           {version?.updateAvailable && (
-            <button onClick={onUpdate} className="btn-ghost !border-amber-400/30 !bg-amber-400/10 text-amber-300" title={`Update to v${version.latest}`}>
+            <NavLink to="/settings" className="btn-ghost !border-amber-400/30 !bg-amber-400/10 text-amber-300" title={`Update to v${version.latest}`}>
               Update ↑
-            </button>
+            </NavLink>
           )}
-
-          <button onClick={onScan} className="btn-ghost hidden sm:inline-flex" title="Rescan library">
-            <svg viewBox="0 0 24 24" className={`h-4 w-4 ${scanning ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 12a9 9 0 1 1-3-6.7L21 8" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M21 3v5h-5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className="hidden xl:inline">{scanning ? 'Scanning' : 'Scan'}</span>
-          </button>
 
           <NavLink to="/downloads" className="btn-ghost relative hidden sm:inline-flex" title="Downloads">
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
@@ -122,6 +109,9 @@ export default function Navbar({
                   <div className="text-sm font-semibold">{user?.username}</div>
                   <div className="text-xs text-slate-500">{user?.is_admin ? 'Admin' : 'Profile'}</div>
                 </div>
+                <Link to="/settings" onClick={() => setMenu(false)} className="block w-full px-4 py-2 text-left text-sm text-slate-200 hover:bg-white/5">
+                  Settings
+                </Link>
                 {user?.is_admin && (
                   <button onClick={() => { setMenu(false); onManageUsers() }} className="block w-full px-4 py-2 text-left text-sm text-slate-200 hover:bg-white/5">
                     Manage profiles

@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS media (
   container   TEXT,
   bitrate     INTEGER,
   folder      TEXT DEFAULT '',            -- relative folder path inside the media dir
+  subs        TEXT DEFAULT '[]',          -- JSON: [{lang, file}] subtitle sidecars
   poster      TEXT,
   backdrop    TEXT,
   overview    TEXT,
@@ -78,11 +79,16 @@ CREATE INDEX IF NOT EXISTS idx_media_added ON media(added_at DESC);
 CREATE INDEX IF NOT EXISTS idx_dl_created ON downloads(created_at DESC);
 `)
 
-// lightweight migration: add folder column to pre-existing installs
+// lightweight migrations for pre-existing installs
 try {
   db.prepare('SELECT folder FROM media LIMIT 1').get()
 } catch {
   db.exec("ALTER TABLE media ADD COLUMN folder TEXT DEFAULT ''")
+}
+try {
+  db.prepare('SELECT subs FROM media LIMIT 1').get()
+} catch {
+  db.exec("ALTER TABLE media ADD COLUMN subs TEXT DEFAULT '[]'")
 }
 
 // ---------- media ----------
@@ -183,7 +189,13 @@ function hydrate(r) {
     watched: !!r.watched,
     genres: r.genres ? JSON.parse(r.genres) : [],
     cast: r.cast_json ? JSON.parse(r.cast_json) : [],
+    subs: r.subs ? JSON.parse(r.subs) : [],
   }
+}
+
+const setSubsStmt = db.prepare(`UPDATE media SET subs=? WHERE id=?`)
+export function setSubs(id, arr) {
+  setSubsStmt.run(JSON.stringify(arr || []), id)
 }
 export const hydrateMedia = hydrate
 

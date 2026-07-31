@@ -19,4 +19,27 @@ export default async function streamRoutes(fastify) {
     reply.header('Cache-Control', 'public, max-age=86400').type('image/jpeg')
     return reply.send(fs.createReadStream(p))
   })
+
+  // subtitles served as browser-native WebVTT (SRT is converted on the fly)
+  fastify.get('/api/subs/:id/:idx', async (req, reply) => {
+    const m = getMedia(req.params.id)
+    if (!m) return reply.code(404).send()
+    const subs = m.subs ? JSON.parse(m.subs) : []
+    const s = subs[Number(req.params.idx)]
+    if (!s) return reply.code(404).send()
+    const abs = path.resolve(config.mediaDir, s.file)
+    if (!abs.startsWith(config.mediaDir) || !fs.existsSync(abs)) return reply.code(404).send()
+    let txt = fs.readFileSync(abs, 'utf8')
+    if (abs.toLowerCase().endsWith('.srt')) txt = srtToVtt(txt)
+    else if (!/^WEBVTT/.test(txt)) txt = 'WEBVTT\n\n' + txt
+    reply.header('Content-Type', 'text/vtt; charset=utf-8')
+    return reply.send(txt)
+  })
+}
+
+function srtToVtt(txt) {
+  return (
+    'WEBVTT\n\n' +
+    txt.replace(/\r/g, '').replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
+  )
 }
