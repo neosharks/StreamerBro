@@ -1,16 +1,19 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { getMedia } from '../db.js'
-import { config } from '../config.js'
+import { config, PLAYABLE_VCODECS } from '../config.js'
 import { streamDirect, streamTranscode, canDirectPlay } from '../stream.js'
 
 export default async function streamRoutes(fastify) {
   fastify.get('/api/stream/:id', async (req, reply) => {
     const m = getMedia(req.params.id)
     if (!m || !fs.existsSync(m.path)) return reply.code(404).send({ error: 'not found' })
-    const force = req.query.transcode === '1'
-    if (!force && canDirectPlay(m)) return streamDirect(req, reply, m)
-    return streamTranscode(req, reply, m)
+    if (canDirectPlay(m)) return streamDirect(req, reply, m)
+    // remux (fast, lossless) only when the video codec is browser-decodable but the
+    // container isn't (e.g. H.264 inside MKV). For codecs the browser can't decode at
+    // all (HEVC/x265) we DON'T spawn a doomed transcode — the client downloads instead.
+    if (PLAYABLE_VCODECS.has((m.vcodec || '').toLowerCase())) return streamTranscode(req, reply, m)
+    return reply.code(415).send({ error: 'incompatible' })
   })
 
   // download the original file to the user's device

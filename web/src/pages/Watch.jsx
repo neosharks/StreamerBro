@@ -13,7 +13,6 @@ export default function Watch({ canDelete }) {
 
   const [m, setM] = useState(null)
   const [err, setErr] = useState(false)
-  const [transcode, setTranscode] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [neighbors, setNeighbors] = useState({ prev: null, next: null })
 
@@ -33,7 +32,6 @@ export default function Watch({ canDelete }) {
 
   useEffect(() => {
     setM(null)
-    setTranscode(false)
     setErr(false)
     api.get(id).then(setM).catch(() => setErr(true))
   }, [id])
@@ -80,30 +78,48 @@ export default function Watch({ canDelete }) {
   if (err) return <div className="grid h-screen place-items-center bg-black text-slate-400">Not found.</div>
   if (!m) return <div className="grid h-screen place-items-center bg-black text-slate-400">Loading…</div>
 
-  const src = api.streamUrl(id, transcode)
+  const src = api.streamUrl(id)
+  const PLAYABLE_V = ['h264', 'avc1', 'vp8', 'vp9', 'av1']
+  const incompatible = m.vcodec && !PLAYABLE_V.includes(m.vcodec.toLowerCase())
 
   return (
     <div className="bg-ink-950">
-      {/* immersive player */}
-      <NetflixPlayer
-        src={src}
-        poster={m.backdrop || m.poster || api.thumb(m.id)}
-        title={m.title || m.filename}
-        media={m}
-        mediaId={id}
-        subtitles={m.subs || []}
-        autoPlay={!infoMode}
-        onProgressSave={(f, w) => api.setProgress(id, f, w).catch(() => {})}
-        onNeedTranscode={() => !transcode && setTranscode(true)}
-        onBack={() => navigate('/')}
-        onNext={neighbors.next ? () => navigate(`/watch/${neighbors.next}`) : undefined}
-        onPrev={neighbors.prev ? () => navigate(`/watch/${neighbors.prev}`) : undefined}
-      />
-
-      {transcode && (
-        <p className="bg-black py-2 text-center text-xs text-amber-300/80">
-          Transcoding on the fly — this file's codec isn't natively browser-playable.
-        </p>
+      {incompatible ? (
+        // codecs the browser can't decode (e.g. HEVC/x265) — offer a download instead
+        <div className="relative grid h-[70vh] place-items-center overflow-hidden bg-black">
+          <img src={m.backdrop || m.poster || api.thumb(m.id)} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 blur-sm" />
+          <button onClick={() => navigate('/')} className="btn-ghost absolute left-4 top-20 z-10">← Library</button>
+          <div className="relative z-10 max-w-md px-6 text-center">
+            <div className="mb-3 text-4xl">🎞️</div>
+            <h2 className="text-xl font-bold">Not playable in the browser</h2>
+            <p className="mt-2 text-sm text-slate-300">
+              “{m.title || m.filename}” is <b>{(m.vcodec || '').toUpperCase()}</b>
+              {m.height >= 1400 ? ' 4K' : ''}, which browsers can't decode in-page. Download it to
+              watch on your device (VLC, a TV, etc.).
+            </p>
+            <a href={api.downloadUrl(id)} download className="btn-primary mt-5 inline-flex">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 3v12m0 0 4-4m-4 4-4-4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" strokeLinecap="round" />
+              </svg>
+              Download to watch
+            </a>
+          </div>
+        </div>
+      ) : (
+        <NetflixPlayer
+          src={src}
+          poster={m.backdrop || m.poster || api.thumb(m.id)}
+          title={m.title || m.filename}
+          media={m}
+          mediaId={id}
+          subtitles={m.subs || []}
+          autoPlay={!infoMode}
+          onProgressSave={(f, w) => api.setProgress(id, f, w).catch(() => {})}
+          onBack={() => navigate('/')}
+          onNext={neighbors.next ? () => navigate(`/watch/${neighbors.next}`) : undefined}
+          onPrev={neighbors.prev ? () => navigate(`/watch/${neighbors.prev}`) : undefined}
+        />
       )}
 
       {/* details below (scroll down) */}
