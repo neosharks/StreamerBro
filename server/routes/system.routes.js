@@ -2,6 +2,8 @@ import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import { config } from '../config.js'
 import { fixThumbnails, cleanJunk, stats, serverStats } from '../maintenance.js'
+import { resetMeta } from '../db.js'
+import { runMetaWorker } from '../library.js'
 
 export default async function systemRoutes(fastify) {
   fastify.get('/api/system/stats', async () => stats())
@@ -12,6 +14,11 @@ export default async function systemRoutes(fastify) {
     fixThumbnails({ force: req.body?.force }),
   )
   fastify.post('/api/system/clean', async () => cleanJunk())
+  fastify.post('/api/system/refresh-metadata', async () => {
+    const queued = resetMeta()
+    runMetaWorker() // fire-and-forget
+    return { queued }
+  })
 
   fastify.get('/api/system/version', async () => {
     let latest = null

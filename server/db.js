@@ -179,6 +179,11 @@ export function setProgress(id, progress, watched) {
 const setMetaStateStmt = db.prepare(`UPDATE media SET meta_state=? WHERE id=?`)
 export const setMetaState = (id, s) => setMetaStateStmt.run(s, id)
 
+// re-queue metadata for everything that isn't already fetched (leaves YT/done items)
+export function resetMeta() {
+  return db.prepare(`UPDATE media SET meta_state='pending' WHERE meta_state != 'done'`).run().changes
+}
+
 const delMediaStmt = db.prepare(`DELETE FROM media WHERE id=?`)
 export const deleteMedia = (id) => delMediaStmt.run(id)
 

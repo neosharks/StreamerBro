@@ -146,6 +146,11 @@ export default function SettingsPage({ user }) {
                 onClick={() => run('scan', api.scan, (r) => `Scan complete — ${r.added ?? 0} new file(s).`)}
               />
               <Action
+                label="Refresh metadata"
+                running={busy === 'meta'}
+                onClick={() => run('meta', api.refreshMetaAll, (r) => `Fetching IMDB metadata for ${r.queued} title(s)…`)}
+              />
+              <Action
                 label="Fix thumbnails"
                 running={busy === 'thumbs'}
                 onClick={() =>

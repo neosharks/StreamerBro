@@ -34,9 +34,10 @@ export const config = {
   transcodePreset: process.env.TRANSCODE_PRESET || 'veryfast',
   transcodeCrf: process.env.TRANSCODE_CRF || '20',
 
-  // metadata providers (optional — app degrades gracefully without them)
-  tmdbKey: process.env.TMDB_API_KEY || '',
-  omdbKey: process.env.OMDB_API_KEY || '',
+  // metadata providers
+  tmdbKey: process.env.TMDB_API_KEY || '', // richest (posters, cast, TV) — free key
+  omdbKey: process.env.OMDB_API_KEY || '', // authoritative IMDB rating
+  ytsEnabled: process.env.YTS !== '0', // keyless movie metadata fallback (yts.mx API)
 
   // self-update
   updateScript: process.env.UPDATE_SCRIPT || path.join(root, 'scripts', 'update.sh'),

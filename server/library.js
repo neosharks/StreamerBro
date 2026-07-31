@@ -235,7 +235,7 @@ export async function scanLibrary({ onProgress } = {}) {
 // Background worker: fill metadata for freshly scanned items.
 let metaRunning = false
 export async function runMetaWorker() {
-  if (metaRunning || !config.tmdbKey) return
+  if (metaRunning || (!config.tmdbKey && !config.ytsEnabled)) return
   metaRunning = true
   try {
     for (const m of pendingMeta()) {

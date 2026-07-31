@@ -11,7 +11,7 @@ Think "your own private Netflix" that also downloads for you.
 - **Netflix-style UI** — billboard hero, horizontal category rows, hover previews, red/dark theme, smooth animations. Works great on desktop **and** mobile (bottom tab bar, just like the Netflix app).
 - **Custom video player** — full original quality via HTTP range streaming (instant seeking, zero re-encode). Auto-transcodes only when the browser can't decode the codec (HEVC/MKV). Netflix-style controls: scrubber, ±10s skip, volume, playback speed, fullscreen, and keyboard shortcuts.
 - **Continue Watching** — remembers where you left off and resumes automatically.
-- **Metadata** — posters, backdrops, plot, cast, genres and **IMDB ratings** via TMDB (+ optional OMDb).
+- **Metadata** — posters, backdrops, plot, cast, genres and **IMDB ratings**, working with **no API key** (IMDB data via Cinemeta). A free TMDB key adds higher-res artwork, cast photos and TV shows; OMDb adds authoritative IMDB ratings.
 - **Download in** — paste a **torrent magnet** or a **video link (yt-dlp)**; it downloads at best quality straight into your library, then the download entry disappears and the file lives in your library.
 - **File Manager** — a Windows-style file browser: create nested folders, move files/folders, rename, delete.
 - **Users & permissions** — username/password login (no email), a Netflix "who's watching" profile picker, and an admin who creates profiles and toggles per-profile **Download** and **Delete** permissions. Everyone can watch everything.
@@ -103,7 +103,7 @@ All optional — see `.env.example`. Common ones:
 | `TMDB_API_KEY` | – | Posters, plot, cast, IMDB id ([free key](https://www.themoviedb.org/settings/api)) |
 | `OMDB_API_KEY` | – | Authoritative IMDB rating ([free key](https://www.omdbapi.com/apikey.aspx)) |
 
-Without a TMDB key the app still works — it just uses filenames + generated thumbnails instead of posters.
+IMDB metadata (posters, ratings, cast) works out of the box with no key. A TMDB key just adds higher-res artwork, cast photos, and TV-show support.
 
 ---
 
